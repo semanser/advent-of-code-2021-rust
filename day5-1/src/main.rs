@@ -1,0 +1,140 @@
+use std::collections::HashMap;
+use std::fs;
+
+#[derive(Debug)]
+struct Point {
+    x: u16,
+    y: u16,
+}
+
+impl Point {
+    fn new(x: u16, y: u16) -> Point {
+        Point { x, y }
+    }
+}
+
+#[derive(Debug)]
+struct Segment {
+    start: Point,
+    end: Point,
+    points: Vec<Point>,
+}
+
+fn main() {
+    let data = fs::read_to_string("../input.txt").expect("Unable to read file");
+    let mut segments: Vec<Segment> = Vec::new();
+
+    // Read all the input data
+    data.lines().for_each(|line| {
+        let mut segment = Segment {
+            start: Point::new(0, 0),
+            end: Point::new(0, 0),
+            points: vec![],
+        };
+
+        line.split("->")
+            .enumerate()
+            .for_each(|(i, line_coordinates)| {
+                let coordinates: Vec<u16> = line_coordinates
+                    .trim()
+                    .split(',')
+                    .map(|coordinate| coordinate.parse::<u16>().unwrap())
+                    .collect();
+
+                if i == 0 {
+                    segment.start = Point {
+                        x: coordinates[0],
+                        y: coordinates[1],
+                    }
+                }
+                if i == 1 {
+                    segment.end = Point {
+                        x: coordinates[0],
+                        y: coordinates[1],
+                    }
+                }
+            });
+
+        if segment.start.x == segment.end.x || segment.start.y == segment.end.y {
+            segments.push(segment);
+        }
+    });
+
+    // Calculate all the coordinates
+    segments.iter_mut().for_each(|segment| {
+        if segment.start.x == segment.end.x {
+            let mut start = segment.start.y;
+            let mut end = segment.end.y;
+
+            if segment.start.y > segment.end.y {
+                start = segment.end.y;
+                end = segment.start.y;
+            }
+            for y in start..=end {
+                let point = Point::new(segment.start.x, y);
+                if number_of_duplicates(&segment.points, &point) == 0 {
+                    segment.points.push(point);
+                }
+            }
+        }
+
+        if segment.start.y == segment.end.y {
+            let mut start = segment.start.x;
+            let mut end = segment.end.x;
+
+            if segment.start.x > segment.end.x {
+                start = segment.end.x;
+                end = segment.start.x;
+            }
+            for x in start..=end {
+                let point = Point::new(x, segment.start.y);
+                if number_of_duplicates(&segment.points, &point) == 0 {
+                    segment.points.push(point);
+                }
+            }
+        }
+    });
+
+    // Flat and dedupe all the coordinates
+    let mut coordinates_collection: HashMap<String, u16> = HashMap::new();
+
+    segments.iter().for_each(|segment| {
+        segment.points.iter().for_each(|point| {
+            let x = point.x.to_string();
+            let y = point.y.to_string();
+
+            let mut key: String = String::from("");
+            key.push_str(&x);
+            key.push_str("-");
+            key.push_str(&y);
+
+            if coordinates_collection.contains_key(&key) {
+                let old_counter = coordinates_collection.get(&key).unwrap().clone();
+                coordinates_collection.insert(key, old_counter + 1);
+            } else {
+                coordinates_collection.insert(key, 0);
+            }
+        });
+    });
+    let duplicated = coordinates_collection
+        .values()
+        .filter(|value| *value != &0)
+        .count();
+
+    println!("Duplicated points: {}", duplicated);
+}
+
+fn number_of_duplicates(points: &Vec<Point>, point: &Point) -> u16 {
+    let all_coordinates_count = points.len();
+    let mut number_of_duplicates = 0;
+
+    for i in 0..all_coordinates_count {
+        let coordinate = points.get(i).unwrap();
+
+        if coordinate.x == point.x && coordinate.y == point.y {
+            number_of_duplicates += 1;
+        }
+    }
+
+    number_of_duplicates
+}
